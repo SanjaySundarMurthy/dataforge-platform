@@ -1,0 +1,75 @@
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+.terraform.lock.hcl
+crash.log
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker
+docker/volumes/
+
+# Spark
+spark-jobs/metastore_db/
+spark-jobs/derby.log
+spark-jobs/spark-warehouse/
+
+# dbt
+data-warehouse/dbt/target/
+data-warehouse/dbt/dbt_packages/
+data-warehouse/dbt/logs/
+
+# Data files (generated)
+data/
+*.parquet
+*.delta
+sample-data/output/
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.crt
+
+# Logs
+logs/
+*.log
+
+# Node (if any tooling)
+node_modules/

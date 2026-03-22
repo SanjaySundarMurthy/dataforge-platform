@@ -1,0 +1,108 @@
+# ============================================================
+# Prometheus Alert Rules — DataForge Platform
+# ============================================================
+
+groups:
+  - name: dataforge-pipeline
+    rules:
+      # Pipeline hasn't run in 25 hours
+      - alert: PipelineStale
+        expr: time() - max(dataforge_pipeline_last_success_timestamp) > 90000
+        for: 5m
+        labels:
+          severity: warning
+          team: data-engineering
+        annotations:
+          summary: "Data pipeline hasn't run in over 25 hours"
+          description: "The DataForge ETL pipeline last succeeded {{ $value | humanizeDuration }} ago."
+
+      # High pipeline failure rate
+      - alert: PipelineFailureRate
+        expr: rate(dataforge_pipeline_failures_total[1h]) > 0.1
+        for: 10m
+        labels:
+          severity: critical
+          team: data-engineering
+        annotations:
+          summary: "High pipeline failure rate"
+          description: "Pipeline failure rate is {{ $value | humanizePercentage }}."
+
+  - name: dataforge-api
+    rules:
+      # API high latency
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.95, rate(dataforge_api_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "API p95 latency above 2 seconds"
+          description: "DataForge API p95 latency is {{ $value }}s."
+
+      # API high error rate
+      - alert: APIHighErrorRate
+        expr: sum(rate(dataforge_api_requests_total{status=~"5.."}[5m])) / sum(rate(dataforge_api_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "API error rate above 5%"
+          description: "DataForge API error rate is {{ $value | humanizePercentage }}."
+
+      # API down
+      - alert: APIDown
+        expr: up{job="dataforge-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "DataForge API is down"
+          description: "The DataForge API has been unreachable for more than 2 minutes."
+
+  - name: dataforge-infrastructure
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}%."
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}%."
+
+      # Disk space low
+      - alert: DiskSpaceLow
+        expr: (1 - node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100 > 85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space low on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value }}%."
+
+  - name: dataforge-data-quality
+    rules:
+      # Data quality check failures
+      - alert: DataQualityFailure
+        expr: dataforge_quality_checks_failed > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: data-engineering
+        annotations:
+          summary: "Data quality checks failed"
+          description: "{{ $value }} data quality checks have failed."

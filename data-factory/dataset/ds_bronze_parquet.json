@@ -1,0 +1,27 @@
+{
+    "name": "ds_bronze_parquet",
+    "properties": {
+        "description": "Dataset for Bronze layer Parquet files partitioned by date",
+        "type": "Parquet",
+        "linkedServiceName": {
+            "referenceName": "ls_adls_datalake",
+            "type": "LinkedServiceReference"
+        },
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "folderPath": {
+                    "value": "@concat('bronze/', dataset().tableName, '/', dataset().partitionDate)",
+                    "type": "Expression"
+                },
+                "fileSystem": "bronze"
+            },
+            "compressionCodec": "snappy"
+        },
+        "parameters": {
+            "tableName": { "type": "string" },
+            "partitionDate": { "type": "string" }
+        },
+        "annotations": ["bronze", "parquet"]
+    }
+}

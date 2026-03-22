@@ -1,0 +1,129 @@
+{
+    "name": "pl_aggregate_silver_to_gold",
+    "properties": {
+        "description": "Builds business-level Gold aggregations from Silver data. Creates daily_sales, customer_360, and product_performance tables.",
+        "activities": [
+            {
+                "name": "Build Daily Sales",
+                "type": "DatabricksNotebook",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "notebookPath": "/dataforge/notebooks/04_gold_aggregation",
+                    "baseParameters": {
+                        "aggregation": "daily_sales",
+                        "silver_path": "@pipeline().parameters.silverPath",
+                        "gold_path": "@pipeline().parameters.goldPath"
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "Build Customer 360",
+                "type": "DatabricksNotebook",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "notebookPath": "/dataforge/notebooks/04_gold_aggregation",
+                    "baseParameters": {
+                        "aggregation": "customer_360",
+                        "silver_path": "@pipeline().parameters.silverPath",
+                        "gold_path": "@pipeline().parameters.goldPath"
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "Build Product Performance",
+                "type": "DatabricksNotebook",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "notebookPath": "/dataforge/notebooks/04_gold_aggregation",
+                    "baseParameters": {
+                        "aggregation": "product_performance",
+                        "silver_path": "@pipeline().parameters.silverPath",
+                        "gold_path": "@pipeline().parameters.goldPath"
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "Load to Data Warehouse",
+                "type": "Copy",
+                "dependsOn": [
+                    {
+                        "activity": "Build Daily Sales",
+                        "dependencyConditions": ["Succeeded"]
+                    },
+                    {
+                        "activity": "Build Customer 360",
+                        "dependencyConditions": ["Succeeded"]
+                    },
+                    {
+                        "activity": "Build Product Performance",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "ParquetSource",
+                        "storeSettings": {
+                            "type": "AzureBlobFSReadSettings",
+                            "recursive": true
+                        }
+                    },
+                    "sink": {
+                        "type": "SqlDWSink",
+                        "allowPolyBase": true,
+                        "polyBaseSettings": {
+                            "rejectType": "value",
+                            "rejectValue": 0
+                        },
+                        "preCopyScript": "TRUNCATE TABLE analytics.daily_sales; TRUNCATE TABLE analytics.customer_360; TRUNCATE TABLE analytics.product_performance;"
+                    }
+                }
+            }
+        ],
+        "parameters": {
+            "silverPath": {
+                "type": "string",
+                "defaultValue": "abfss://silver@stadataforgedev.dfs.core.windows.net"
+            },
+            "goldPath": {
+                "type": "string",
+                "defaultValue": "abfss://gold@stadataforgedev.dfs.core.windows.net"
+            }
+        },
+        "annotations": ["aggregation", "gold", "warehouse"],
+        "folder": {
+            "name": "03-Aggregation"
+        }
+    }
+}

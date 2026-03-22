@@ -1,0 +1,91 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Raw e-commerce source data
+    tables:
+      - name: customers
+        description: Customer demographic data
+        columns:
+          - name: customer_id
+            tests:
+              - not_null
+              - unique
+      - name: products
+        description: Product catalog
+        columns:
+          - name: product_id
+            tests:
+              - not_null
+              - unique
+      - name: orders
+        description: Order transactions
+        columns:
+          - name: order_id
+            tests:
+              - not_null
+              - unique
+      - name: order_items
+        description: Order line items
+        columns:
+          - name: item_id
+            tests:
+              - not_null
+      - name: reviews
+        description: Product reviews
+      - name: clickstream
+        description: User behavior events
+
+models:
+  - name: stg_customers
+    description: Cleaned customer data
+    columns:
+      - name: customer_id
+        tests:
+          - not_null
+          - unique
+      - name: segment
+        tests:
+          - accepted_values:
+              values: ['premium', 'standard', 'unknown']
+
+  - name: stg_orders
+    description: Cleaned order data
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: total_amount
+        tests:
+          - not_null
+
+  - name: stg_products
+    description: Cleaned product data
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+          - unique
+      - name: price
+        tests:
+          - not_null
+
+  - name: stg_order_items
+    description: Cleaned order line items
+    columns:
+      - name: item_id
+        tests:
+          - not_null
+      - name: order_id
+        tests:
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id

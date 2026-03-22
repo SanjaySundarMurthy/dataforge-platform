@@ -1,0 +1,101 @@
+{{- if .Values.spark.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dataforge.fullname" . }}-spark-master
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "dataforge.labels" . | nindent 4 }}
+    component: spark-master
+spec:
+  replicas: {{ .Values.spark.master.replicaCount }}
+  selector:
+    matchLabels:
+      app: spark-master
+  template:
+    metadata:
+      labels:
+        app: spark-master
+    spec:
+      containers:
+        - name: spark-master
+          image: "{{ .Values.spark.master.image.repository }}:{{ .Values.spark.master.image.tag }}"
+          env:
+            - name: SPARK_MODE
+              value: "master"
+          ports:
+            - containerPort: 7077
+              name: spark
+            - containerPort: 8080
+              name: webui
+          resources:
+            {{- toYaml .Values.spark.master.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master
+  namespace: {{ .Values.global.namespace }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7077
+      targetPort: 7077
+      name: spark
+    - port: 8080
+      targetPort: 8080
+      name: webui
+  selector:
+    app: spark-master
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dataforge.fullname" . }}-spark-worker
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "dataforge.labels" . | nindent 4 }}
+    component: spark-worker
+spec:
+  replicas: {{ .Values.spark.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app: spark-worker
+  template:
+    metadata:
+      labels:
+        app: spark-worker
+    spec:
+      containers:
+        - name: spark-worker
+          image: "{{ .Values.spark.worker.image.repository }}:{{ .Values.spark.worker.image.tag }}"
+          env:
+            - name: SPARK_MODE
+              value: "worker"
+            - name: SPARK_MASTER_URL
+              value: "spark://spark-master:7077"
+          resources:
+            {{- toYaml .Values.spark.worker.resources | nindent 12 }}
+{{- if .Values.spark.worker.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "dataforge.fullname" . }}-spark-worker
+  namespace: {{ .Values.global.namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "dataforge.fullname" . }}-spark-worker
+  minReplicas: {{ .Values.spark.worker.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.spark.worker.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.spark.worker.autoscaling.targetCPU }}
+{{- end }}
+{{- end }}

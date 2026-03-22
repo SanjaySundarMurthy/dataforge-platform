@@ -1,0 +1,108 @@
+# ============================================================
+# Security Scanning — DataForge Platform
+# Container scanning + dependency audit
+# ============================================================
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"   # Weekly Monday 6AM UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ----------------------------------------------------------
+  # Container Image Scan (Trivy)
+  # ----------------------------------------------------------
+  container-scan:
+    name: Container Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - { context: "docker/spark", name: "spark" }
+          - { context: "api", name: "api" }
+          - { context: "data-generator", name: "data-generator" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t dataforge/${{ matrix.image.name }}:scan ${{ matrix.image.context }}
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: dataforge/${{ matrix.image.name }}:scan
+          format: sarif
+          output: trivy-${{ matrix.image.name }}.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.image.name }}.sarif
+
+  # ----------------------------------------------------------
+  # Python Dependency Audit
+  # ----------------------------------------------------------
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit API dependencies
+        run: pip-audit -r api/requirements.txt
+
+      - name: Audit generator dependencies
+        run: pip-audit -r data-generator/requirements.txt
+
+  # ----------------------------------------------------------
+  # Terraform Security Scan (tfsec)
+  # ----------------------------------------------------------
+  terraform-scan:
+    name: Terraform Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: infrastructure
+          soft_fail: true
+
+  # ----------------------------------------------------------
+  # Helm Chart Security (kubeaudit)
+  # ----------------------------------------------------------
+  helm-security:
+    name: Helm Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Template and scan
+        run: |
+          helm template dataforge helm-charts/dataforge-platform > rendered.yaml
+          echo "--- Helm template rendered successfully ---"
+          # Basic checks
+          grep -c "runAsNonRoot: true" rendered.yaml || echo "Warning: runAsNonRoot not set"
+          grep -c "readOnlyRootFilesystem: true" rendered.yaml || echo "Warning: readOnlyRootFilesystem not set"

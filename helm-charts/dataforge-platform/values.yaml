@@ -1,0 +1,112 @@
+# ============================================================
+# DataForge Platform — Helm Values
+# ============================================================
+# Override these values per environment
+
+global:
+  namespace: dataforge
+  environment: production
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# ── API Service ──────────────────────────────────────────────
+api:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: dataforge/api
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8000
+  ingress:
+    enabled: true
+    className: nginx
+    host: api.dataforge.local
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+  env:
+    API_HOST: "0.0.0.0"
+    API_PORT: "8000"
+    LOG_LEVEL: "info"
+
+# ── Spark ────────────────────────────────────────────────────
+spark:
+  enabled: true
+  master:
+    replicaCount: 1
+    image:
+      repository: dataforge/spark
+      tag: latest
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+  worker:
+    replicaCount: 2
+    image:
+      repository: dataforge/spark
+      tag: latest
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    autoscaling:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 10
+      targetCPU: 70
+
+# ── PostgreSQL ───────────────────────────────────────────────
+postgresql:
+  enabled: true
+  auth:
+    database: dataforge
+    username: dataforge_admin
+    existingSecret: dataforge-db-secret
+  primary:
+    persistence:
+      size: 10Gi
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+# ── Monitoring ───────────────────────────────────────────────
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    retention: 7d
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+  grafana:
+    enabled: true
+    adminUser: admin
+    adminPassword: dataforge123
+    dashboardProviders:
+      enabled: true
+  alertmanager:
+    enabled: true
+  loki:
+    enabled: true

@@ -1,0 +1,148 @@
+{
+    "name": "pl_ingest_source_to_bronze",
+    "properties": {
+        "description": "Ingests data from source systems into the Bronze layer of the Data Lake. Handles CSV, JSON, and database sources with parameterized execution.",
+        "activities": [
+            {
+                "name": "Get Source Metadata",
+                "type": "Lookup",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.00:10:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "JsonSource",
+                        "storeSettings": {
+                            "type": "AzureBlobFSReadSettings",
+                            "recursive": false
+                        }
+                    },
+                    "dataset": {
+                        "referenceName": "ds_config_json",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "fileName": "ingestion_config.json"
+                        }
+                    },
+                    "firstRowOnly": false
+                }
+            },
+            {
+                "name": "ForEach Source Table",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Get Source Metadata",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "typeProperties": {
+                    "isSequential": false,
+                    "batchCount": 4,
+                    "items": {
+                        "value": "@activity('Get Source Metadata').output.value",
+                        "type": "Expression"
+                    },
+                    "activities": [
+                        {
+                            "name": "Copy Source to Bronze",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.01:00:00",
+                                "retry": 3,
+                                "retryIntervalInSeconds": 60
+                            },
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSReadSettings",
+                                        "recursive": true,
+                                        "wildcardFileName": "*.csv"
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    }
+                                },
+                                "sink": {
+                                    "type": "ParquetSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSWriteSettings"
+                                    },
+                                    "formatSettings": {
+                                        "type": "ParquetWriteSettings"
+                                    }
+                                },
+                                "enableStaging": false,
+                                "parallelCopies": 4,
+                                "dataIntegrationUnits": 4
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_landing_csv",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "tableName": "@item().tableName",
+                                        "folderPath": "@item().sourcePath"
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_bronze_parquet",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "tableName": "@item().tableName",
+                                        "partitionDate": "@formatDateTime(utcNow(), 'yyyy/MM/dd')"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Log Ingestion Success",
+                            "type": "SqlServerStoredProcedure",
+                            "dependsOn": [
+                                {
+                                    "activity": "Copy Source to Bronze",
+                                    "dependencyConditions": ["Succeeded"]
+                                }
+                            ],
+                            "typeProperties": {
+                                "storedProcedureName": "usp_log_pipeline_execution",
+                                "storedProcedureParameters": {
+                                    "pipeline_name": {"value": "@pipeline().Pipeline", "type": "String"},
+                                    "table_name": {"value": "@item().tableName", "type": "String"},
+                                    "rows_copied": {"value": "@activity('Copy Source to Bronze').output.rowsCopied", "type": "Int64"},
+                                    "status": {"value": "Success", "type": "String"},
+                                    "execution_time": {"value": "@activity('Copy Source to Bronze').output.copyDuration", "type": "Int32"}
+                                }
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "ls_sql_warehouse",
+                                "type": "LinkedServiceReference"
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "parameters": {
+            "sourceSystem": {
+                "type": "string",
+                "defaultValue": "ecommerce"
+            },
+            "loadType": {
+                "type": "string",
+                "defaultValue": "full"
+            }
+        },
+        "annotations": ["ingestion", "bronze"],
+        "folder": {
+            "name": "01-Ingestion"
+        }
+    }
+}

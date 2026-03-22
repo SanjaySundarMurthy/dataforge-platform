@@ -1,0 +1,161 @@
+{
+    "name": "pl_transform_bronze_to_silver",
+    "properties": {
+        "description": "Executes Databricks notebooks to transform raw Bronze data into cleaned, validated Silver data using Delta Lake format.",
+        "activities": [
+            {
+                "name": "Transform Customers",
+                "type": "DatabricksNotebook",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "notebookPath": "/dataforge/notebooks/03_silver_transformation",
+                    "baseParameters": {
+                        "table_name": "customers",
+                        "bronze_path": "@pipeline().parameters.bronzePath",
+                        "silver_path": "@pipeline().parameters.silverPath"
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "Transform Products",
+                "type": "DatabricksNotebook",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "notebookPath": "/dataforge/notebooks/03_silver_transformation",
+                    "baseParameters": {
+                        "table_name": "products",
+                        "bronze_path": "@pipeline().parameters.bronzePath",
+                        "silver_path": "@pipeline().parameters.silverPath"
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "Transform Orders",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Transform Customers",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "notebookPath": "/dataforge/notebooks/03_silver_transformation",
+                    "baseParameters": {
+                        "table_name": "orders",
+                        "bronze_path": "@pipeline().parameters.bronzePath",
+                        "silver_path": "@pipeline().parameters.silverPath"
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "Transform Order Items",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Transform Orders",
+                        "dependencyConditions": ["Succeeded"]
+                    },
+                    {
+                        "activity": "Transform Products",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "notebookPath": "/dataforge/notebooks/03_silver_transformation",
+                    "baseParameters": {
+                        "table_name": "order_items",
+                        "bronze_path": "@pipeline().parameters.bronzePath",
+                        "silver_path": "@pipeline().parameters.silverPath"
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "Run Data Quality Checks",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Transform Customers",
+                        "dependencyConditions": ["Succeeded"]
+                    },
+                    {
+                        "activity": "Transform Orders",
+                        "dependencyConditions": ["Succeeded"]
+                    },
+                    {
+                        "activity": "Transform Order Items",
+                        "dependencyConditions": ["Succeeded"]
+                    },
+                    {
+                        "activity": "Transform Products",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 0
+                },
+                "typeProperties": {
+                    "notebookPath": "/dataforge/notebooks/06_data_quality_checks",
+                    "baseParameters": {
+                        "silver_path": "@pipeline().parameters.silverPath",
+                        "fail_on_error": "true"
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            }
+        ],
+        "parameters": {
+            "bronzePath": {
+                "type": "string",
+                "defaultValue": "abfss://bronze@stadataforgedev.dfs.core.windows.net"
+            },
+            "silverPath": {
+                "type": "string",
+                "defaultValue": "abfss://silver@stadataforgedev.dfs.core.windows.net"
+            }
+        },
+        "annotations": ["transformation", "silver", "delta"],
+        "folder": {
+            "name": "02-Transformation"
+        }
+    }
+}

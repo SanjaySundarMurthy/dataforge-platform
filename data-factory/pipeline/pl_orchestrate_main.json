@@ -1,0 +1,131 @@
+{
+    "name": "pl_orchestrate_main",
+    "properties": {
+        "description": "Master orchestration pipeline that executes the full ETL workflow: Ingest → Transform → Aggregate → Quality Gate.",
+        "activities": [
+            {
+                "name": "Step 1 - Ingest to Bronze",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "pl_ingest_source_to_bronze",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "sourceSystem": "@pipeline().parameters.sourceSystem",
+                        "loadType": "@pipeline().parameters.loadType"
+                    }
+                }
+            },
+            {
+                "name": "Step 2 - Transform to Silver",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "Step 1 - Ingest to Bronze",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "pl_transform_bronze_to_silver",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true
+                }
+            },
+            {
+                "name": "Step 3 - Aggregate to Gold",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "Step 2 - Transform to Silver",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "pl_aggregate_silver_to_gold",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true
+                }
+            },
+            {
+                "name": "Send Success Notification",
+                "type": "WebActivity",
+                "dependsOn": [
+                    {
+                        "activity": "Step 3 - Aggregate to Gold",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "typeProperties": {
+                    "url": "@pipeline().parameters.notificationWebhookUrl",
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "body": {
+                        "text": "DataForge Pipeline Completed Successfully",
+                        "pipeline": "@pipeline().Pipeline",
+                        "runId": "@pipeline().RunId",
+                        "timestamp": "@utcNow()"
+                    }
+                }
+            },
+            {
+                "name": "Send Failure Notification",
+                "type": "WebActivity",
+                "dependsOn": [
+                    {
+                        "activity": "Step 1 - Ingest to Bronze",
+                        "dependencyConditions": ["Failed"]
+                    },
+                    {
+                        "activity": "Step 2 - Transform to Silver",
+                        "dependencyConditions": ["Failed"]
+                    },
+                    {
+                        "activity": "Step 3 - Aggregate to Gold",
+                        "dependencyConditions": ["Failed"]
+                    }
+                ],
+                "typeProperties": {
+                    "url": "@pipeline().parameters.notificationWebhookUrl",
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "body": {
+                        "text": "DataForge Pipeline FAILED",
+                        "pipeline": "@pipeline().Pipeline",
+                        "runId": "@pipeline().RunId",
+                        "timestamp": "@utcNow()",
+                        "severity": "critical"
+                    }
+                }
+            }
+        ],
+        "parameters": {
+            "sourceSystem": {
+                "type": "string",
+                "defaultValue": "ecommerce"
+            },
+            "loadType": {
+                "type": "string",
+                "defaultValue": "full"
+            },
+            "notificationWebhookUrl": {
+                "type": "string",
+                "defaultValue": "https://hooks.example.com/pipeline-notifications"
+            }
+        },
+        "annotations": ["orchestration", "master"],
+        "folder": {
+            "name": "00-Orchestration"
+        }
+    }
+}

@@ -1,0 +1,141 @@
+# ============================================================
+# DataForge Platform - Docker Compose (Core Services)
+# ============================================================
+# One-click local development environment
+# Usage: docker compose -f docker/docker-compose.yml up -d
+# ============================================================
+
+services:
+  # ── PostgreSQL (Data Warehouse) ────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: dataforge-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dataforge}
+      POSTGRES_USER: ${POSTGRES_USER:-dataforge_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../data-warehouse/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dataforge_admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dataforge-network
+
+  # ── Spark Master ───────────────────────────────────────────
+  spark-master:
+    build:
+      context: ..
+      dockerfile: docker/spark/Dockerfile
+    container_name: dataforge-spark-master
+    environment:
+      SPARK_MODE: master
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT: 7077
+      SPARK_MASTER_WEBUI_PORT: 8080
+    ports:
+      - "${SPARK_MASTER_WEBUI_PORT:-8080}:8080"
+      - "7077:7077"
+    volumes:
+      - ../spark-jobs:/app
+      - spark_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - dataforge-network
+
+  # ── Spark Worker ───────────────────────────────────────────
+  spark-worker:
+    build:
+      context: ..
+      dockerfile: docker/spark/Dockerfile
+    container_name: dataforge-spark-worker
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_WEBUI_PORT: 8081
+    ports:
+      - "${SPARK_WORKER_WEBUI_PORT:-8081}:8081"
+    volumes:
+      - ../spark-jobs:/app
+      - spark_data:/data
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    networks:
+      - dataforge-network
+
+  # ── API Service (FastAPI) ──────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    container_name: dataforge-api
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dataforge}
+      POSTGRES_USER: ${POSTGRES_USER:-dataforge_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+      ENVIRONMENT: local
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - dataforge-network
+
+  # ── Data Generator ─────────────────────────────────────────
+  data-generator:
+    build:
+      context: ..
+      dockerfile: data-generator/Dockerfile
+    container_name: dataforge-generator
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-dataforge}
+      POSTGRES_USER: ${POSTGRES_USER:-dataforge_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+      OUTPUT_PATH: /data/landing
+      NUM_CUSTOMERS: ${GENERATOR_NUM_CUSTOMERS:-1000}
+      NUM_PRODUCTS: ${GENERATOR_NUM_PRODUCTS:-500}
+      NUM_ORDERS: ${GENERATOR_NUM_ORDERS:-10000}
+    volumes:
+      - spark_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - seed
+    networks:
+      - dataforge-network
+
+volumes:
+  postgres_data:
+    driver: local
+  spark_data:
+    driver: local
+
+networks:
+  dataforge-network:
+    driver: bridge
+    name: dataforge-network

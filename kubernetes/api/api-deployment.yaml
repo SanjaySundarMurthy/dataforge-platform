@@ -1,0 +1,213 @@
+# ============================================================
+# DataForge API — Kubernetes Deployment
+# ============================================================
+# Concepts: Deployment, Service, Ingress, ConfigMap, Secrets,
+#           HPA, PDB, Resource Management
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: dataforge
+data:
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "info"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-secrets
+  namespace: dataforge
+type: Opaque
+stringData:
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "dataforge"
+  POSTGRES_USER: "dataforge_admin"
+  # In production, use External Secrets Operator or Azure Key Vault
+  POSTGRES_PASSWORD: "change-me-in-production"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dataforge-api
+  namespace: dataforge
+  labels:
+    app: dataforge-api
+    component: serving
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dataforge-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: dataforge-api
+        component: serving
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: dataforge-api
+      containers:
+        - name: api
+          image: dataforge/api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: api-config
+            - secretRef:
+                name: api-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 2
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: dataforge-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dataforge-api
+  namespace: dataforge
+  labels:
+    app: dataforge-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: dataforge-api
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dataforge-api
+  namespace: dataforge
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.dataforge.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dataforge-api
+                port:
+                  number: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dataforge-api-hpa
+  namespace: dataforge
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dataforge-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dataforge-api-pdb
+  namespace: dataforge
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: dataforge-api
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dataforge-api
+  namespace: dataforge
+  labels:
+    app: dataforge-api
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dataforge-api-role
+  namespace: dataforge
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dataforge-api-rolebinding
+  namespace: dataforge
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dataforge-api-role
+subjects:
+  - kind: ServiceAccount
+    name: dataforge-api
+    namespace: dataforge

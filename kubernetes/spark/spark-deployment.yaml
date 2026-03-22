@@ -1,0 +1,160 @@
+# ============================================================
+# Spark Master — Kubernetes Deployment
+# ============================================================
+# Concepts: Deployment, Service, Resource Limits, Health Probes
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-master
+  namespace: dataforge
+  labels:
+    app: spark-master
+    component: processing
+    app.kubernetes.io/part-of: dataforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-master
+  template:
+    metadata:
+      labels:
+        app: spark-master
+        component: processing
+    spec:
+      containers:
+        - name: spark-master
+          image: dataforge/spark:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPARK_MODE
+              value: "master"
+            - name: SPARK_MASTER_HOST
+              value: "0.0.0.0"
+            - name: SPARK_MASTER_PORT
+              value: "7077"
+            - name: SPARK_MASTER_WEBUI_PORT
+              value: "8080"
+          ports:
+            - containerPort: 7077
+              name: spark
+            - containerPort: 8080
+              name: webui
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master
+  namespace: dataforge
+  labels:
+    app: spark-master
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7077
+      targetPort: 7077
+      name: spark
+    - port: 8080
+      targetPort: 8080
+      name: webui
+  selector:
+    app: spark-master
+---
+# ============================================================
+# Spark Worker — StatefulSet with Auto-Scaling
+# ============================================================
+# Concepts: StatefulSet, HPA, Tolerations, Node Affinity
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-worker
+  namespace: dataforge
+  labels:
+    app: spark-worker
+    component: processing
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: spark-worker
+  template:
+    metadata:
+      labels:
+        app: spark-worker
+        component: processing
+    spec:
+      containers:
+        - name: spark-worker
+          image: dataforge/spark:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPARK_MODE
+              value: "worker"
+            - name: SPARK_MASTER_URL
+              value: "spark://spark-master:7077"
+            - name: SPARK_WORKER_CORES
+              value: "2"
+            - name: SPARK_WORKER_MEMORY
+              value: "2G"
+          ports:
+            - containerPort: 8081
+              name: webui
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+      tolerations:
+        - key: "workload"
+          operator: "Equal"
+          value: "spark"
+          effect: "NoSchedule"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: spark-worker-hpa
+  namespace: dataforge
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: spark-worker
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

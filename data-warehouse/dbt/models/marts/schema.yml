@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: mart_daily_sales
+    description: Daily sales aggregation with running totals and moving averages
+    columns:
+      - name: sale_date
+        tests:
+          - not_null
+          - unique
+      - name: gross_revenue
+        tests:
+          - not_null
+
+  - name: mart_customer_360
+    description: Comprehensive customer profile with RFM segmentation
+    columns:
+      - name: customer_id
+        tests:
+          - not_null
+          - unique
+      - name: customer_tier
+        tests:
+          - accepted_values:
+              values: ['champion', 'loyal', 'new_active', 'at_risk', 'regular']
+
+  - name: mart_product_performance
+    description: Product KPIs with category rankings
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+          - unique
+      - name: total_revenue
+        tests:
+          - not_null

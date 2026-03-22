@@ -1,0 +1,14 @@
+apiVersion: v2
+name: dataforge-platform
+description: DataForge Platform — Enterprise Data Engineering Helm Chart
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: SanjaySundarMurthy
+keywords:
+  - data-engineering
+  - spark
+  - etl
+  - analytics
+  - monitoring

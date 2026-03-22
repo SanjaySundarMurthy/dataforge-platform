@@ -1,0 +1,15 @@
+{
+    "name": "ls_adls_datalake",
+    "properties": {
+        "description": "Azure Data Lake Storage Gen2 connection using Managed Identity",
+        "type": "AzureBlobFS",
+        "typeProperties": {
+            "url": "https://stadataforgedev.dfs.core.windows.net"
+        },
+        "connectVia": {
+            "referenceName": "ir-auto-resolve",
+            "type": "IntegrationRuntimeReference"
+        },
+        "annotations": ["data-lake", "managed-identity"]
+    }
+}

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dataforge
+  labels:
+    app.kubernetes.io/part-of: dataforge
+    app.kubernetes.io/managed-by: kubectl
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dataforge-monitoring
+  labels:
+    app.kubernetes.io/part-of: dataforge
+    purpose: monitoring
