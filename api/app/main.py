@@ -5,19 +5,22 @@ FastAPI analytics service exposing data warehouse insights.
 
 Concepts covered:
 - FastAPI application structure
-- Dependency injection
+- Dependency injection with connection pooling
 - Pydantic models for validation
 - Health checks & readiness probes
 - Prometheus metrics integration
 - CORS configuration
+- Middleware for request tracking
 """
 
 import os
+import time
 from contextlib import asynccontextmanager
 
 import psycopg2
+import psycopg2.pool
 from psycopg2.extras import RealDictCursor
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import Counter, Histogram, generate_latest
 from fastapi.responses import PlainTextResponse
@@ -43,32 +46,41 @@ REQUEST_LATENCY = Histogram(
     ["endpoint"],
 )
 
+# ── Connection Pool ──────────────────────────────────────────
+connection_pool = None
 
-# ── Database Connection ──────────────────────────────────────
+
 def get_db():
-    """Database dependency — yields a connection per request."""
-    conn = psycopg2.connect(
-        host=os.getenv("POSTGRES_HOST", "localhost"),
-        port=int(os.getenv("POSTGRES_PORT", "5432")),
-        dbname=os.getenv("POSTGRES_DB", "dataforge"),
-        user=os.getenv("POSTGRES_USER", "dataforge_admin"),
-        password=os.getenv("POSTGRES_PASSWORD", "changeme_in_production"),
-        cursor_factory=RealDictCursor,
-    )
+    """Database dependency — yields a connection from the pool."""
+    conn = connection_pool.getconn()
     try:
         yield conn
     finally:
-        conn.close()
+        connection_pool.putconn(conn)
 
 
 # ── Application ──────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown events."""
-    print("🚀 DataForge API starting...")
+    global connection_pool
+    connection_pool = psycopg2.pool.ThreadedConnectionPool(
+        minconn=2,
+        maxconn=10,
+        host=os.getenv("POSTGRES_HOST", "localhost"),
+        port=int(os.getenv("POSTGRES_PORT", "5432")),
+        dbname=os.getenv("POSTGRES_DB", "dataforge"),
+        user=os.getenv("POSTGRES_USER", "dataforge_admin"),
+        password=os.getenv("POSTGRES_PASSWORD", ""),
+        cursor_factory=RealDictCursor,
+    )
     yield
-    print("👋 DataForge API shutting down...")
+    connection_pool.closeall()
 
+
+ALLOWED_ORIGINS = os.getenv(
+    "CORS_ORIGINS", "http://localhost:3000,http://localhost:8080"
+).split(",")
 
 app = FastAPI(
     title="DataForge Analytics API",
@@ -79,14 +91,27 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS
+# CORS — restricted origins, no wildcard with credentials
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+# ── Request Tracking Middleware ──────────────────────────────
+@app.middleware("http")
+async def track_requests(request: Request, call_next):
+    """Track request count and latency with actual status codes."""
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed = time.perf_counter() - start
+    endpoint = request.url.path
+    REQUEST_COUNT.labels(request.method, endpoint, str(response.status_code)).inc()
+    REQUEST_LATENCY.labels(endpoint).observe(elapsed)
+    return response
 
 
 # ── Health & Readiness ───────────────────────────────────────
@@ -135,7 +160,6 @@ async def get_daily_sales(
         )
         rows = cur.fetchall()
 
-    REQUEST_COUNT.labels("GET", "/api/v1/sales/daily", "200").inc()
     return [DailySalesResponse(**row) for row in rows]
 
 
@@ -165,7 +189,6 @@ async def get_customers(
         cur.execute(query, params)
         rows = cur.fetchall()
 
-    REQUEST_COUNT.labels("GET", "/api/v1/customers", "200").inc()
     return [Customer360Response(**row) for row in rows]
 
 
@@ -195,7 +218,6 @@ async def get_products(
         cur.execute(query, params)
         rows = cur.fetchall()
 
-    REQUEST_COUNT.labels("GET", "/api/v1/products", "200").inc()
     return [ProductPerformanceResponse(**row) for row in rows]
 
 

@@ -51,4 +51,9 @@ variable "synapse_sql_admin_password" {
   description = "SQL administrator password for Synapse"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.synapse_sql_admin_password) >= 12
+    error_message = "Password must be at least 12 characters."
+  }
 }

@@ -86,6 +86,17 @@ services:
     networks:
       - dataforge-network
 
+  # ── PostgreSQL Exporter ────────────────────────────────────
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: dataforge-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-dataforge_admin}:${POSTGRES_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-dataforge}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - dataforge-network
+
 volumes:
   prometheus_data:
     driver: local

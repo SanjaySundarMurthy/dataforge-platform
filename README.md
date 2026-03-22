@@ -1,362 +1,600 @@
-# 🔥 DataForge Platform
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-DataForge-blue?style=for-the-badge&logo=databricks&logoColor=white" alt="DataForge"/>
+  <img src="https://img.shields.io/badge/Azure-Cloud-0078D4?style=for-the-badge&logo=microsoftazure" alt="Azure"/>
+  <img src="https://img.shields.io/badge/Terraform-IaC-7B42BC?style=for-the-badge&logo=terraform" alt="Terraform"/>
+  <img src="https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker" alt="Docker"/>
+  <img src="https://img.shields.io/badge/Kubernetes-Orchestration-326CE5?style=for-the-badge&logo=kubernetes" alt="K8s"/>
+</p>
 
-### Enterprise Data Engineering Platform — End-to-End
+<h1 align="center">🏗️ DataForge Platform</h1>
+<h3 align="center">Enterprise Data Engineering Platform — From Ingestion to Insight</h3>
 
-> A production-grade, fully automated data engineering platform built with Azure Data Factory, Spark, Databricks, Data Warehouse, Terraform, CI/CD, Docker, Kubernetes, Helm, and comprehensive monitoring. One-click setup. Zero compromise.
-
-[![CI Pipeline](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions)](/.github/workflows/ci.yml)
-[![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform)](./infrastructure)
-[![Docker](https://img.shields.io/badge/Container-Docker-2496ED?logo=docker)](./docker)
-[![Kubernetes](https://img.shields.io/badge/Orchestration-Kubernetes-326CE5?logo=kubernetes)](./kubernetes)
-[![Helm](https://img.shields.io/badge/Package-Helm-0F1689?logo=helm)](./helm-charts)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-
----
-
-## 📐 Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           DataForge Platform Architecture                            │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │
-│  │  REST APIs   │  │  Databases   │  │  CSV/JSON    │  │  Streaming   │  DATA       │
-│  │  (External)  │  │  (PostgreSQL)│  │  (Files)     │  │  (Events)    │  SOURCES    │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘             │
-│         │                 │                  │                  │                     │
-│  ═══════╪═════════════════╪══════════════════╪══════════════════╪═══════════════════  │
-│         │          INGESTION LAYER (Azure Data Factory)        │                     │
-│         └─────────────────┴──────────────────┴──────────────────┘                     │
-│                                    │                                                  │
-│  ┌─────────────────────────────────▼──────────────────────────────────┐               │
-│  │                     DATA LAKE (ADLS Gen2)                          │               │
-│  │  ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐     │               │
-│  │  │ 🥉 BRONZE    │  │  🥈 SILVER       │  │  🥇 GOLD         │     │               │
-│  │  │ Raw/As-Is    │→→│  Clean/Validated │→→│  Business-Ready  │     │               │
-│  │  │ (Parquet)    │  │  (Delta Lake)    │  │  (Delta Lake)    │     │               │
-│  │  └──────────────┘  └──────────────────┘  └──────────────────┘     │               │
-│  └────────────────────────────────────────────────────────────────────┘               │
-│                                    │                                                  │
-│         ┌──────────────────────────┼──────────────────────────┐                       │
-│         │                          │                          │                       │
-│  ┌──────▼───────┐  ┌──────────────▼───────────┐  ┌──────────▼─────────┐              │
-│  │   Spark      │  │    Databricks            │  │   dbt              │              │
-│  │   (PySpark)  │  │    (Notebooks + Jobs)    │  │   (Transformations)│              │
-│  │   ETL Jobs   │  │    ML Feature Eng.       │  │   Data Warehouse   │              │
-│  └──────────────┘  └──────────────────────────┘  └────────────────────┘              │
-│                                    │                                                  │
-│  ┌─────────────────────────────────▼──────────────────────────────────┐               │
-│  │              DATA WAREHOUSE (Azure Synapse / PostgreSQL)           │               │
-│  │  ┌─────────┐  ┌───────────┐  ┌───────────┐  ┌──────────────────┐ │               │
-│  │  │   dim_  │  │   fact_   │  │   agg_    │  │   analytics_     │ │               │
-│  │  │customers│  │  orders   │  │daily_sales│  │  customer_360    │ │               │
-│  │  │products │  │order_items│  │product_kpi│  │  revenue_report  │ │               │
-│  │  └─────────┘  └───────────┘  └───────────┘  └──────────────────┘ │               │
-│  └────────────────────────────────────────────────────────────────────┘               │
-│                                    │                                                  │
-│  ┌─────────────────────────────────▼──────────────────────────────────┐               │
-│  │                    SERVING LAYER (FastAPI)                         │               │
-│  │  /api/v1/analytics  /api/v1/health  /api/v1/metrics               │               │
-│  └────────────────────────────────────────────────────────────────────┘               │
-│                                                                                      │
-│  ═══════════════════════ INFRASTRUCTURE LAYER ═══════════════════════                │
-│  ┌────────────┐ ┌──────────┐ ┌────────┐ ┌──────┐ ┌────────────────┐                │
-│  │ Terraform  │ │  Docker  │ │  K8s   │ │ Helm │ │ GitHub Actions │                │
-│  └────────────┘ └──────────┘ └────────┘ └──────┘ └────────────────┘                │
-│                                                                                      │
-│  ═══════════════════════ MONITORING LAYER ═══════════════════════════                │
-│  ┌────────────┐ ┌──────────┐ ┌──────────────┐ ┌───────────────────┐                │
-│  │ Prometheus │ │ Grafana  │ │ AlertManager │ │ Loki (Logging)    │                │
-│  └────────────┘ └──────────┘ └──────────────┘ └───────────────────┘                │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="https://img.shields.io/github/actions/workflow/status/SanjaySundarMurthy/dataforge-platform/ci.yml?label=CI&logo=githubactions&style=flat-square" alt="CI"/>
+  <img src="https://img.shields.io/github/actions/workflow/status/SanjaySundarMurthy/dataforge-platform/security-scan.yml?label=Security&logo=githubactions&style=flat-square" alt="Security"/>
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License"/>
+  <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=flat-square" alt="PRs"/>
+</p>
 
 ---
 
-## 🗂️ Project Structure
+## � What is DataForge?
+
+DataForge is a **production-grade, end-to-end data engineering platform** that processes e-commerce analytics data through a **Medallion Architecture** (Bronze → Silver → Gold) using Azure's data services, with full CI/CD automation, container orchestration, and observability.
+
+> **Perfect for learning:** Every component is documented with the concepts it covers. Use this as a reference implementation for interviews, certifications, or real projects.
+
+---
+
+## 🏛️ Architecture
+
+```mermaid
+graph TB
+    subgraph "📥 Data Sources"
+        CSV[CSV Files]
+        API_SRC[REST APIs]
+        STREAM[Event Streams]
+    end
+
+    subgraph "🔄 Ingestion Layer"
+        ADF[Azure Data Factory]
+        AUTOLOADER[Databricks Auto Loader]
+    end
+
+    subgraph "🏗️ Processing — Medallion Architecture"
+        subgraph "🥉 Bronze — Raw"
+            B_CUST[customers]
+            B_PROD[products]
+            B_ORD[orders]
+            B_ITEMS[order_items]
+            B_CLICK[clickstream]
+            B_REV[reviews]
+        end
+        subgraph "🥈 Silver — Cleaned"
+            S_CUST[dim_customers]
+            S_PROD[dim_products]
+            S_ORD[fact_orders]
+            S_ITEMS[fact_order_items]
+        end
+        subgraph "🥇 Gold — Aggregated"
+            G_SALES[daily_sales]
+            G_CUST[customer_360]
+            G_PROD[product_perf]
+            G_TRAFFIC[hourly_traffic]
+        end
+    end
+
+    subgraph "📊 Serving Layer"
+        SYNAPSE[Azure Synapse<br/>SQL Analytics]
+        FASTAPI[FastAPI<br/>REST Service]
+        DBT[dbt Models]
+    end
+
+    subgraph "📈 Visualization"
+        GRAFANA[Grafana<br/>Dashboards]
+        PROM[Prometheus<br/>Metrics]
+    end
+
+    CSV --> ADF
+    API_SRC --> ADF
+    STREAM --> AUTOLOADER
+    ADF --> B_CUST & B_PROD & B_ORD & B_ITEMS
+    AUTOLOADER --> B_CLICK & B_REV
+    B_CUST --> S_CUST
+    B_PROD --> S_PROD
+    B_ORD --> S_ORD
+    B_ITEMS --> S_ITEMS
+    S_CUST & S_ORD --> G_SALES
+    S_CUST & S_ORD --> G_CUST
+    S_PROD & S_ITEMS --> G_PROD
+    B_CLICK --> G_TRAFFIC
+    G_SALES & G_CUST & G_PROD --> SYNAPSE
+    G_SALES & G_CUST & G_PROD --> FASTAPI
+    SYNAPSE --> DBT
+    FASTAPI --> GRAFANA
+    PROM --> GRAFANA
+```
+
+---
+
+## 🎯 Technologies & Concepts Covered
+
+| Layer | Technology | Concepts You'll Learn |
+|:---:|:---|:---|
+| ☁️ | **Terraform** | IaC, modules, state management, workspaces, Azure provider |
+| 🏭 | **Azure Data Factory** | Pipelines, triggers, linked services, managed VNet, parameterization |
+| ⚡ | **Apache Spark / PySpark** | DataFrames, Delta Lake, schemas, partitioning, window functions |
+| 📓 | **Databricks** | Notebooks, Auto Loader, Delta MERGE, OPTIMIZE, VACUUM |
+| 🏢 | **Azure Synapse** | Dedicated SQL pools, Spark pools, managed VNet, private endpoints |
+| 📊 | **dbt** | Staging/mart models, schema tests, macros, documentation |
+| 🐳 | **Docker** | Multi-stage builds, compose, health checks, networks, volumes |
+| ☸️ | **Kubernetes** | Deployments, HPA, PDB, RBAC, Ingress, security contexts |
+| ⛵ | **Helm** | Charts, values, templates, helpers, NOTES.txt, releases |
+| 🔄 | **GitHub Actions** | CI/CD, matrix builds, OIDC auth, artifact passing, security scanning |
+| 📈 | **Prometheus + Grafana** | Metrics, alerting, dashboards, Loki log aggregation |
+| 🔌 | **FastAPI** | REST API, Pydantic models, middleware, connection pooling, OpenAPI |
+
+---
+
+## 📁 Project Structure
 
 ```
 dataforge-platform/
 │
-├── infrastructure/          # 🏗️  Terraform IaC (Azure)
-│   ├── modules/             #     Reusable Terraform modules
-│   │   ├── networking/      #     VNet, Subnets, NSGs
-│   │   ├── data-lake/       #     ADLS Gen2 Storage
-│   │   ├── data-factory/    #     Azure Data Factory
-│   │   ├── databricks/      #     Azure Databricks Workspace
-│   │   ├── synapse/         #     Azure Synapse Analytics
-│   │   ├── aks/             #     Azure Kubernetes Service
-│   │   ├── container-registry/ #  Azure Container Registry
-│   │   ├── key-vault/       #     Azure Key Vault
-│   │   └── monitoring/      #     Azure Monitor + Log Analytics
-│   └── environments/        #     Per-environment configs
+├── 📋 README.md                    ← You are here
+├── 📋 Makefile                     ← 30+ automation targets
+├── 📋 .env.example                 ← Environment variable template
 │
-├── data-factory/            # 🏭  Azure Data Factory Pipelines
-│   ├── pipeline/            #     Pipeline definitions
-│   ├── dataset/             #     Dataset definitions
-│   ├── linkedService/       #     Connection configurations
-│   ├── trigger/             #     Scheduling triggers
-│   └── dataflow/            #     Mapping data flows
+├── 🏗️ infrastructure/              ← Terraform IaC (9 Azure modules)
+│   ├── main.tf                     ← Root module orchestration
+│   ├── variables.tf / outputs.tf
+│   ├── environments/               ← dev.tfvars, prod.tfvars
+│   └── modules/
+│       ├── networking/             ← VNet, Subnets, NSGs
+│       ├── aks/                    ← Kubernetes cluster + spot pools
+│       ├── data-lake/              ← ADLS Gen2 (Medallion containers)
+│       ├── data-factory/           ← ADF with managed VNet
+│       ├── databricks/             ← Premium workspace, VNet injection
+│       ├── synapse/                ← SQL + Spark pools
+│       ├── container-registry/     ← ACR Premium
+│       ├── key-vault/              ← RBAC-based access
+│       └── monitoring/             ← Log Analytics + App Insights
 │
-├── spark-jobs/              # ⚡  PySpark ETL Jobs
-│   ├── src/                 #     Source code
-│   │   ├── ingestion/       #     Data ingestion modules
-│   │   ├── transformations/ #     Bronze→Silver→Gold
-│   │   └── quality/         #     Data quality checks
-│   └── tests/               #     Unit & integration tests
+├── ⚡ spark-jobs/                   ← PySpark ETL pipeline
+│   ├── src/
+│   │   ├── common/                 ← SparkSession factory, config, logging
+│   │   ├── ingestion/              ← Landing → Bronze (schema enforcement)
+│   │   ├── transformations/        ← Bronze → Silver → Gold
+│   │   ├── quality/                ← Data quality checker
+│   │   └── pipeline.py             ← Orchestrator
+│   └── tests/                      ← pytest suite
 │
-├── databricks/              # 📓  Databricks Notebooks & Jobs
-│   ├── notebooks/           #     Interactive notebooks
-│   ├── jobs/                #     Job definitions
-│   └── init-scripts/        #     Cluster init scripts
+├── 🏭 data-factory/                ← ADF pipeline definitions
+│   ├── pipeline/                   ← Ingest, transform, aggregate, orchestrate
+│   ├── trigger/                    ← Daily ETL trigger
+│   ├── linkedService/              ← ADLS linked service (managed identity)
+│   └── dataset/                    ← Parameterized datasets
 │
-├── data-warehouse/          # 🏛️  Data Warehouse Layer
-│   ├── migrations/          #     Schema migrations
-│   └── dbt/                 #     dbt transformations
-│       ├── models/          #     staging → marts
-│       ├── tests/           #     Data tests
-│       └── macros/          #     Reusable SQL macros
+├── 📓 databricks/notebooks/        ← 6 interactive notebooks
+│   ├── 01_explore_raw_data.py
+│   ├── 02_bronze_ingestion.py      ← Batch + Auto Loader
+│   ├── 03_silver_transformation.py ← Delta MERGE upserts
+│   ├── 04_gold_aggregation.py
+│   ├── 05_pipeline_orchestration.py ← Multi-step orchestrator
+│   └── 06_data_quality_checks.py
 │
-├── api/                     # 🚀  FastAPI Analytics Service
-│   ├── app/                 #     Application code
-│   └── tests/               #     API tests
+├── 🏢 data-warehouse/              ← SQL + dbt
+│   ├── migrations/                 ← V001 star schema DDL
+│   └── dbt/
+│       ├── models/staging/         ← stg_customers, stg_orders
+│       ├── models/marts/           ← mart_daily_sales, mart_customer_360
+│       └── macros/                 ← generate_date_spine
 │
-├── data-generator/          # 🎲  Realistic Data Generator
-│   └── src/                 #     E-commerce data simulation
+├── 🐳 docker/                      ← Container configurations
+│   ├── docker-compose.yml          ← App stack (5 services)
+│   ├── docker-compose.monitoring.yml ← Monitoring stack (6 services)
+│   └── spark/                      ← Multi-stage Spark Dockerfile
 │
-├── docker/                  # 🐳  Docker Configurations
-│   ├── docker-compose.yml   #     Full local stack
-│   └── docker-compose.monitoring.yml
+├── 🔌 api/                         ← FastAPI analytics service
+│   ├── app/main.py                 ← Endpoints + connection pooling + CORS
+│   ├── app/models.py               ← Pydantic response models
+│   └── tests/                      ← pytest API tests
 │
-├── kubernetes/              # ☸️  Kubernetes Manifests
-│   ├── namespaces/          #     Namespace definitions
-│   ├── spark/               #     Spark on K8s
-│   ├── api/                 #     API deployment
-│   └── monitoring/          #     Monitoring stack
+├── 🎲 data-generator/              ← Faker-based data generation
+│   └── src/generate.py             ← Realistic e-commerce data (6 tables)
 │
-├── helm-charts/             # ⎈  Helm Charts
-│   ├── dataforge-platform/  #     Umbrella chart
-│   ├── dataforge-spark/     #     Spark chart
-│   ├── dataforge-api/       #     API chart
-│   └── dataforge-monitoring/#     Monitoring chart
+├── ☸️ kubernetes/                   ← K8s manifests
+│   ├── namespaces/                 ← Namespace definitions
+│   ├── api/                        ← Full API deployment (HPA, PDB, RBAC, Ingress)
+│   └── spark/                      ← Spark master + worker + HPA
 │
-├── monitoring/              # 📊  Observability Stack
-│   ├── prometheus/          #     Metrics collection
-│   ├── grafana/             #     Dashboards
-│   ├── alertmanager/        #     Alert routing
-│   └── loki/               #     Log aggregation
+├── ⛵ helm-charts/                  ← Helm umbrella chart
+│   └── dataforge-platform/
+│       ├── Chart.yaml / values.yaml
+│       └── templates/              ← api.yaml, spark.yaml, NOTES.txt
 │
-├── .github/workflows/       # 🔄  CI/CD Pipelines
-│   ├── ci.yml               #     Lint, Test, Build
-│   ├── cd-infra.yml         #     Infrastructure deployment
-│   ├── cd-apps.yml          #     Application deployment
-│   └── security-scan.yml    #     Security scanning
+├── 📈 monitoring/                   ← Observability stack
+│   ├── prometheus/                 ← Scrape configs + alert rules
+│   ├── grafana/                    ← 3 dashboards + provisioning
+│   ├── alertmanager/               ← Alert routing
+│   └── loki/                       ← Log aggregation
 │
-├── scripts/                 # 🛠️  Automation Scripts
-│   ├── setup.sh             #     One-click Linux/Mac setup
-│   ├── setup.ps1            #     One-click Windows setup
-│   └── seed-data.sh         #     Load sample data
+├── 🔄 .github/workflows/           ← CI/CD pipelines
+│   ├── ci.yml                      ← Lint, test, validate, build
+│   ├── cd-infra.yml                ← Terraform plan → apply with OIDC
+│   ├── cd-apps.yml                 ← Docker → ACR → Helm → AKS
+│   └── security-scan.yml          ← Trivy + tfsec + pip-audit
 │
-└── docs/                    # 📚  Documentation
-    ├── architecture/        #     Architecture deep-dives
-    ├── guides/              #     How-to guides
-    └── concepts/            #     Concept explanations
+└── 🔧 scripts/                     ← One-click setup
+    ├── setup.sh / setup.ps1        ← Cross-platform bootstrapping
+    └── teardown.sh                 ← Graceful cleanup
 ```
 
 ---
 
-## 🚀 Quick Start (One-Click Setup)
+## ⚡ Quick Start
 
 ### Prerequisites
-- Docker & Docker Compose
-- Python 3.11+
-- Terraform 1.5+ (for cloud deployment)
-- kubectl & helm (for K8s deployment)
 
-### Local Development (Docker Compose)
+| Tool | Version | Purpose |
+|:---|:---|:---|
+| Docker Desktop | 24+ | Container runtime |
+| Python | 3.11+ | Spark jobs, API, generator |
+| Java | 17 | Spark dependency |
+| Git | 2.40+ | Version control |
 
+### Option 1: One-Click Setup
+
+**Linux / macOS:**
 ```bash
-# Clone the repository
 git clone https://github.com/SanjaySundarMurthy/dataforge-platform.git
 cd dataforge-platform
-
-# One-click setup - starts everything
-make up
-
-# Or step by step:
-make build          # Build all containers
-make start          # Start all services
-make seed           # Load sample e-commerce data
-make test           # Run all tests
-make dashboard      # Open Grafana dashboard
+chmod +x scripts/setup.sh
+./scripts/setup.sh full
 ```
 
-### Windows (PowerShell)
-
+**Windows PowerShell:**
 ```powershell
-# One-click setup
-.\scripts\setup.ps1
-
-# Or use Make
-make up
+git clone https://github.com/SanjaySundarMurthy/dataforge-platform.git
+cd dataforge-platform
+.\scripts\setup.ps1 -Mode full
 ```
 
-### Cloud Deployment (Azure)
+### Option 2: Step-by-Step
 
 ```bash
-# Initialize infrastructure
-make infra-init
+# 1. Clone and prepare
+git clone https://github.com/SanjaySundarMurthy/dataforge-platform.git
+cd dataforge-platform
+cp .env.example .env            # Edit with your values
 
-# Plan and apply
-make infra-plan
-make infra-apply
+# 2. Start services
+docker compose -f docker/docker-compose.yml up -d
 
-# Deploy applications
-make deploy-apps
+# 3. Generate sample data
+pip install faker psycopg2-binary
+python data-generator/src/generate.py --output-dir ./data/landing --rows 5000
 
-# Full deployment (infra + apps)
-make deploy-all
+# 4. Run Spark pipeline
+pip install pyspark==3.5.0 delta-spark==3.0.0
+cd spark-jobs && python -m pytest tests/ -v   # Run tests first
+python src/pipeline.py                         # Run full pipeline
+
+# 5. Start monitoring
+docker compose -f docker/docker-compose.monitoring.yml up -d
+
+# 6. Access services
+# API Docs:     http://localhost:8000/docs
+# Spark UI:     http://localhost:8080
+# Grafana:      http://localhost:3000
+# Prometheus:   http://localhost:9090
+```
+
+### Option 3: Cloud Deployment (Azure)
+
+```bash
+# 1. Authenticate
+az login
+az account set --subscription "<YOUR_SUBSCRIPTION_ID>"
+
+# 2. Initialize Terraform
+cd infrastructure
+terraform init
+
+# 3. Plan and apply
+terraform plan -var-file=environments/dev.tfvars -var="synapse_sql_admin_password=YourStr0ngP@ss!"
+terraform apply -var-file=environments/dev.tfvars -var="synapse_sql_admin_password=YourStr0ngP@ss!"
 ```
 
 ---
 
-## 🎯 What You'll Learn
+## 🔄 Data Pipeline Flow
 
-| Technology | Concepts Covered |
-|-----------|-----------------|
-| **Azure Data Factory** | Pipelines, Datasets, Linked Services, Triggers, Data Flows, Parameterization |
-| **Apache Spark** | PySpark, RDDs, DataFrames, Spark SQL, Partitioning, Caching, UDFs |
-| **Databricks** | Notebooks, Clusters, Jobs, Delta Lake, Unity Catalog, MLflow |
-| **Data Warehouse** | Star Schema, Slowly Changing Dimensions, Fact Tables, Aggregations |
-| **dbt** | Models, Tests, Macros, Seeds, Snapshots, Documentation |
-| **Terraform** | Modules, State Management, Workspaces, Variables, Outputs |
-| **Docker** | Multi-stage Builds, Compose, Networking, Volumes, Health Checks |
-| **Kubernetes** | Deployments, Services, ConfigMaps, Secrets, HPA, PDB, RBAC |
-| **Helm** | Charts, Values, Templates, Dependencies, Hooks |
-| **CI/CD** | GitHub Actions, Multi-stage Pipelines, Environment Promotion |
-| **Monitoring** | Prometheus, Grafana, Alerting, Loki, Distributed Tracing |
-| **Data Quality** | Great Expectations, Schema Validation, Freshness Checks |
+```mermaid
+sequenceDiagram
+    participant S as Source Systems
+    participant L as Landing Zone
+    participant B as Bronze Layer
+    participant Si as Silver Layer
+    participant G as Gold Layer
+    participant DW as Data Warehouse
+    participant API as REST API
+
+    S->>L: Raw CSV/JSON files
+    Note over L: Schema-on-read, as-is copy
+
+    L->>B: Ingest with schema enforcement
+    Note over B: + metadata columns<br/>+ ingestion timestamp<br/>+ source tracking
+
+    B->>Si: Clean, validate, deduplicate
+    Note over Si: + standardized formats<br/>+ null handling<br/>+ business rules
+
+    Si->>Si: Data Quality Checks
+    Note over Si: Nulls, uniqueness, ranges<br/>referential integrity, freshness
+
+    Si->>G: Aggregate & enrich
+    Note over G: daily_sales (window funcs)<br/>customer_360 (RFM scoring)<br/>product_performance (rankings)
+
+    G->>DW: Load to Synapse/PostgreSQL
+    G->>API: Serve via FastAPI
+```
 
 ---
 
-## 📊 Data Model (E-Commerce)
+## 🥉🥈🥇 Medallion Architecture Deep Dive
 
-### Source Tables
-- **customers** — Customer demographics and segments
-- **products** — Product catalog with categories
-- **orders** — Order transactions
-- **order_items** — Line items per order
-- **clickstream** — User behavior events
-- **reviews** — Product reviews and ratings
+### Bronze Layer (Raw)
+- **What:** Exact copy of source data with metadata columns added
+- **Format:** Parquet / Delta Lake with partitioning
+- **Columns Added:** `_ingested_at`, `_source_file`, `_batch_id`
+- **Key File:** `spark-jobs/src/ingestion/file_ingestion.py`
 
-### Medallion Architecture
+### Silver Layer (Cleaned)
+- **What:** Validated, deduplicated, standardized data
+- **Transformations:**
+  - Remove duplicates (window + row_number)
+  - Standardize formats (emails lowercase, names titlecase)
+  - Filter invalid records (negative prices, future dates)
+  - Enrich with derived columns
+- **Key File:** `spark-jobs/src/transformations/bronze_to_silver.py`
 
-| Layer | Purpose | Format | Example |
-|-------|---------|--------|---------|
-| 🥉 Bronze | Raw ingestion, as-is | Parquet | `bronze/orders/2024/01/01/` |
-| 🥈 Silver | Cleaned, typed, deduplicated | Delta Lake | `silver/orders/` |
-| 🥇 Gold | Business aggregations | Delta Lake | `gold/daily_sales/` |
+### Gold Layer (Aggregated)
+- **What:** Business-ready aggregated datasets
+- **Aggregations:**
 
-### Data Warehouse (Star Schema)
+| Dataset | Technique | Description |
+|:---|:---|:---|
+| `daily_sales` | Window functions | Running totals, 7-day moving average, YTD revenue |
+| `customer_360` | RFM Scoring | Recency-Frequency-Monetary tier assignment |
+| `product_performance` | DENSE_RANK | Category and overall revenue rankings |
+| `hourly_traffic` | Time bucketing | Conversion rates, bounce rates by hour |
 
+- **Key File:** `spark-jobs/src/transformations/silver_to_gold.py`
+
+---
+
+## 🏢 Data Warehouse — Star Schema
+
+```mermaid
+erDiagram
+    dim_date ||--o{ fact_orders : "order_date"
+    dim_customer ||--o{ fact_orders : "customer_id"
+    dim_customer ||--o{ fact_order_items : "customer_id"
+    dim_product ||--o{ fact_order_items : "product_id"
+    fact_orders ||--o{ fact_order_items : "order_id"
+
+    dim_date {
+        date date_key PK
+        int day_of_week
+        string month_name
+        int quarter
+        bool is_weekend
+    }
+
+    dim_customer {
+        string customer_id PK
+        string full_name
+        string email
+        string segment
+        string region
+        timestamp valid_from
+    }
+
+    dim_product {
+        string product_id PK
+        string name
+        string category
+        string brand
+        decimal price
+    }
+
+    fact_orders {
+        string order_id PK
+        string customer_id FK
+        date order_date FK
+        decimal total_amount
+        string status
+        string payment_method
+    }
+
+    fact_order_items {
+        string item_id PK
+        string order_id FK
+        string product_id FK
+        int quantity
+        decimal unit_price
+        decimal discount
+    }
 ```
-                    ┌──────────────┐
-                    │ dim_date     │
-                    └──────┬───────┘
-                           │
-┌──────────────┐  ┌────────┴───────┐  ┌──────────────┐
-│ dim_customer │──│  fact_orders   │──│ dim_product   │
-└──────────────┘  └────────┬───────┘  └──────────────┘
-                           │
-                    ┌──────┴───────┐
-                    │fact_order_   │
-                    │   items      │
-                    └──────────────┘
+
+---
+
+## ☁️ Infrastructure Modules
+
+```mermaid
+graph LR
+    subgraph "Azure Resource Group"
+        NET[Networking<br/>VNet + 5 Subnets + NSGs]
+        KV[Key Vault<br/>RBAC + Soft Delete 90d]
+        DL[Data Lake<br/>ADLS Gen2 ZRS<br/>4 Containers]
+        ADF_M[Data Factory<br/>Managed VNet + PE]
+        DBR[Databricks<br/>Premium + VNet Injection]
+        SYN[Synapse<br/>SQL + Spark Pools<br/>Private Endpoints]
+        AKS_M[AKS<br/>Workload Identity<br/>Spot Pools + KV CSI]
+        ACR[Container Registry<br/>Premium + Retention]
+        MON[Monitoring<br/>Log Analytics 90d<br/>App Insights + Alerts]
+    end
+
+    NET --> AKS_M
+    NET --> DL
+    NET --> ADF_M
+    NET --> DBR
+    NET --> KV
+    DL --> ADF_M
+    DL --> SYN
+    KV --> ADF_M
+    MON --> AKS_M
+    MON --> SYN
+    MON --> DBR
+    AKS_M --> ACR
 ```
+
+Each module is self-contained with `main.tf`, `variables.tf`, and `outputs.tf`. See [infrastructure/README.md](infrastructure/README.md) for detailed module documentation.
+
+---
+
+## 🔄 CI/CD Pipeline
+
+```mermaid
+graph LR
+    subgraph "On Pull Request"
+        LINT[Ruff + Black<br/>Lint & Format] --> TEST[Python Tests<br/>Spark + API]
+        LINT --> TF_VAL[Terraform<br/>Validate + fmt]
+        LINT --> HELM_L[Helm Lint]
+        TEST --> DOCKER_B[Docker Build<br/>No Push]
+    end
+
+    subgraph "On Merge to Main"
+        TF_PLAN[Terraform Plan] --> TF_APPLY[Terraform Apply<br/>with Artifact]
+        DOCKER_P[Docker Build<br/>Push to ACR] --> HELM_D[Helm Deploy<br/>to AKS]
+    end
+
+    subgraph "Weekly + On Push"
+        TRIVY[Trivy Container Scan]
+        TFSEC[tfsec IaC Scan]
+        AUDIT[pip-audit Dependencies]
+    end
+```
+
+| Workflow | Trigger | What It Does |
+|:---|:---|:---|
+| `ci.yml` | PR + push to main | Lint, test, validate, build |
+| `cd-infra.yml` | Push to main (infrastructure/**) | Terraform plan → apply with OIDC |
+| `cd-apps.yml` | Push to main (app code) | Docker → ACR → Helm → AKS |
+| `security-scan.yml` | Weekly + PR | Trivy, tfsec, pip-audit |
+
+---
+
+## 📈 Monitoring & Observability
+
+### Dashboards
+
+| Dashboard | Panels | Purpose |
+|:---|:---|:---|
+| **Pipeline Overview** | Status, duration, records, quality score | ETL pipeline health |
+| **Infrastructure** | CPU, memory, disk, network, uptime | System resource monitoring |
+| **API Performance** | Request rate, latency percentiles, errors | Service level monitoring |
+
+### Alert Rules
+
+| Alert | Condition | Severity |
+|:---|:---|:---|
+| Pipeline Stale | No success in 25 hours | Warning |
+| Pipeline Failure Rate | >10% failures/hour | Critical |
+| API High Latency | p95 > 2 seconds | Warning |
+| API Down | Target unreachable 2 min | Critical |
+| High CPU Usage | >85% for 10 min | Warning |
+| High Memory Usage | >90% for 10 min | Critical |
+| Data Quality Failure | Any check fails | Warning |
+
+### Service URLs (Local)
+
+| Service | URL |
+|:---|:---|
+| API Documentation | http://localhost:8000/docs |
+| API Metrics | http://localhost:8000/metrics |
+| Spark Master UI | http://localhost:8080 |
+| Grafana | http://localhost:3000 |
+| Prometheus | http://localhost:9090 |
+| Alertmanager | http://localhost:9093 |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all Spark ETL tests
+cd spark-jobs && python -m pytest tests/ -v --cov=src
+
+# Run API tests
+cd api && python -m pytest tests/ -v
+
+# Validate Terraform
+cd infrastructure && terraform validate
+
+# Lint Helm chart
+helm lint helm-charts/dataforge-platform
+
+# dbt compile
+cd data-warehouse/dbt && dbt compile
+```
+
+---
+
+## 🛡️ Security Features
+
+| Feature | Implementation |
+|:---|:---|
+| **Network Isolation** | VNet with dedicated subnets, NSGs, private endpoints |
+| **Identity** | Managed Identity everywhere, RBAC, workload identity on AKS |
+| **Secrets** | Key Vault with RBAC, CSI driver on AKS, no hardcoded credentials |
+| **Encryption** | TLS 1.2+, Azure-managed keys on storage, HTTPS-only |
+| **Container Security** | Non-root users, read-only filesystem, dropped capabilities |
+| **CI/CD Security** | OIDC auth (no stored secrets), Trivy scanning, tfsec, pip-audit |
+| **Data Protection** | Soft delete, ZRS replication, geo-backup, lifecycle policies |
+| **Access Control** | Azure AD RBAC, Calico network policy, Ingress rate limiting |
+
+---
+
+## ⚠️ Failure Handling
+
+### Pipeline Failures
+- **Spark:** Each stage has try/catch blocks. Quality gate between Silver→Gold can halt the pipeline on bad data.
+- **ADF:** Retry policies on all activities (3 retries, 30s interval). Failure notifications via webhook.
+- **Databricks:** `05_pipeline_orchestration.py` manages state tracking and supports `fail_on_error` toggle per step.
+
+### Infrastructure Failures
+- **AKS:** HPA auto-scales on load. PDB ensures availability during rolling updates. Spot pool handles eviction gracefully.
+- **Storage:** ZRS replication protects against datacenter failures. Soft delete for accidental data deletion recovery.
+- **Database:** Synapse geo-backup enabled. Auto-pause conserves costs during inactivity.
+
+### Monitoring Failures
+- **Alertmanager:** Inhibition rules prevent alert storms. Critical alerts suppress related warnings.
+- **Prometheus:** 7-day retention with persistent storage. Auto-discovery for new scrape targets.
+- **Grafana:** Pre-provisioned dashboards survive container restarts via volume mounts.
 
 ---
 
 ## 🔧 Make Targets
 
 ```bash
-make help              # Show all available commands
+make help           # Show all available targets
 
-# 🐳 Docker
-make build             # Build all Docker images
-make up                # Start all services
-make down              # Stop all services
-make logs              # View all logs
-make ps                # Show running containers
+# Docker
+make up             # Start all services
+make down           # Stop all services
+make logs           # Tail container logs
 
-# 🧪 Testing
-make test              # Run all tests
-make test-spark        # Run Spark job tests
-make test-api          # Run API tests
-make test-dbt          # Run dbt tests
-make test-quality      # Run data quality checks
+# Testing
+make test           # Run all tests
+make lint           # Lint Python code
+make format         # Auto-format code
 
-# 🏗️ Infrastructure
-make infra-init        # Initialize Terraform
-make infra-plan        # Plan infrastructure changes
-make infra-apply       # Apply infrastructure
-make infra-destroy     # Destroy infrastructure
+# Data Operations
+make generate-data  # Generate sample data
+make run-pipeline   # Run full Spark pipeline
 
-# 📊 Data Operations
-make seed              # Load sample data
-make run-pipeline      # Execute full ETL pipeline
-make run-spark         # Run Spark jobs
-make run-dbt           # Run dbt transformations
+# Infrastructure
+make infra-plan     # Terraform plan
+make infra-apply    # Terraform apply
 
-# 📈 Monitoring
-make dashboard         # Open Grafana
-make alerts            # Show active alerts
-make metrics           # Show Prometheus metrics
+# Kubernetes
+make k8s-apply      # Apply K8s manifests
+make helm-install   # Helm install/upgrade
 
-# 🚀 Deployment
-make deploy-all        # Deploy everything
-make deploy-infra      # Deploy infrastructure only
-make deploy-apps       # Deploy applications only
+# Monitoring
+make monitoring-up  # Start monitoring stack
 ```
-
----
-
-## 🏗️ Environments
-
-| Environment | Purpose | Infrastructure |
-|-------------|---------|---------------|
-| **local** | Development & learning | Docker Compose |
-| **dev** | Integration testing | Azure (minimal) |
-| **staging** | Pre-production | Azure (scaled down) |
-| **prod** | Production | Azure (full scale) |
-
----
-
-## 📈 Monitoring & Observability
-
-| Tool | Purpose | URL (Local) |
-|------|---------|-------------|
-| **Grafana** | Dashboards & visualization | http://localhost:3000 |
-| **Prometheus** | Metrics collection | http://localhost:9090 |
-| **AlertManager** | Alert routing | http://localhost:9093 |
-| **Loki** | Log aggregation | http://localhost:3100 |
-
-### Pre-built Dashboards
-- **Pipeline Overview** — ETL job status, durations, data volumes
-- **Infrastructure Health** — CPU, memory, disk, network
-- **Data Quality** — Validation pass/fail rates, schema drift
-- **API Performance** — Request rates, latencies, error rates
-
----
-
-## 🔒 Security
-
-- All secrets managed via Azure Key Vault / K8s Secrets
-- Network isolation with VNet and NSGs
-- RBAC for all Azure resources
-- Container image scanning in CI/CD
-- No hardcoded credentials anywhere
-- `.env` files in `.gitignore`
 
 ---
 
@@ -364,19 +602,19 @@ make deploy-apps       # Deploy applications only
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
+3. Commit changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ---
 
-## 📝 License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
 <p align="center">
-  <b>Built with ❤️ for the Data Engineering Community</b><br>
+  <b>Built with ❤️ for the data engineering community</b><br/>
   <i>Star ⭐ this repo if you find it useful!</i>
 </p>

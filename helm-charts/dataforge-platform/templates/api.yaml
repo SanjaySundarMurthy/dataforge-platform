@@ -27,10 +27,20 @@ spec:
         prometheus.io/port: "{{ .Values.api.service.targetPort }}"
         prometheus.io/path: "/metrics"
     spec:
+      serviceAccountName: {{ include "dataforge.fullname" . }}-api
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: {{ .Values.api.service.targetPort }}
               name: http
@@ -116,4 +126,23 @@ spec:
           type: Utilization
           averageUtilization: {{ .Values.api.autoscaling.targetCPU }}
 {{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "dataforge.fullname" . }}-api
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "dataforge.labels" . | nindent 4 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "dataforge.fullname" . }}-api
+  namespace: {{ .Values.global.namespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: dataforge-api
 {{- end }}

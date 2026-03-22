@@ -23,10 +23,16 @@ spec:
         app: spark-master
         component: processing
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
         - name: spark-master
           image: dataforge/spark:latest
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
           env:
             - name: SPARK_MODE
               value: "master"
@@ -81,9 +87,9 @@ spec:
     app: spark-master
 ---
 # ============================================================
-# Spark Worker — StatefulSet with Auto-Scaling
+# Spark Worker — Deployment with Auto-Scaling
 # ============================================================
-# Concepts: StatefulSet, HPA, Tolerations, Node Affinity
+# Concepts: Deployment, HPA, Tolerations, Node Affinity
 # ============================================================
 apiVersion: apps/v1
 kind: Deployment
@@ -104,10 +110,16 @@ spec:
         app: spark-worker
         component: processing
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
         - name: spark-worker
           image: dataforge/spark:latest
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
           env:
             - name: SPARK_MODE
               value: "worker"

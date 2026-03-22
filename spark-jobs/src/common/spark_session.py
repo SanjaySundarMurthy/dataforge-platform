@@ -51,7 +51,7 @@ def get_spark_session(
         # Performance tuning
         .config("spark.sql.adaptive.enabled", "true")
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-        .config("spark.sql.shuffle.partitions", "auto")
+        .config("spark.sql.shuffle.partitions", "200")
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     )
 

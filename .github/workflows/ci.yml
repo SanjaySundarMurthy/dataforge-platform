@@ -70,7 +70,7 @@ jobs:
 
       - name: Run API tests
         run: |
-          pip install fastapi uvicorn httpx prometheus-client
+          pip install fastapi uvicorn httpx prometheus-client psycopg2-binary pydantic
           cd api
           python -m pytest tests/ -v --tb=short
 
@@ -132,9 +132,9 @@ jobs:
     strategy:
       matrix:
         image:
-          - { context: "docker/spark", name: "spark" }
-          - { context: "api", name: "api" }
-          - { context: "data-generator", name: "data-generator" }
+          - { context: ".", dockerfile: "docker/spark/Dockerfile", name: "spark" }
+          - { context: ".", dockerfile: "api/Dockerfile", name: "api" }
+          - { context: ".", dockerfile: "data-generator/Dockerfile", name: "data-generator" }
     steps:
       - uses: actions/checkout@v4
 
@@ -144,6 +144,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
           push: false
           tags: dataforge/${{ matrix.image.name }}:test
           cache-from: type=gha

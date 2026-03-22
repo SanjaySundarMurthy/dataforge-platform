@@ -8,7 +8,7 @@ resource "azurerm_key_vault" "main" {
   resource_group_name        = var.resource_group_name
   tenant_id                  = var.tenant_id
   sku_name                   = "standard"
-  soft_delete_retention_days = 7
+  soft_delete_retention_days = 90
   purge_protection_enabled   = true
   enable_rbac_authorization  = true
 

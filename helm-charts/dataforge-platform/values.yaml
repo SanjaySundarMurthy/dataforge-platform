@@ -103,7 +103,7 @@ monitoring:
   grafana:
     enabled: true
     adminUser: admin
-    adminPassword: dataforge123
+    adminPassword: ""   # Set via --set or external secret
     dashboardProviders:
       enabled: true
   alertmanager:

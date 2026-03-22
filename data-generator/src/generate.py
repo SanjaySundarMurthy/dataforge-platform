@@ -14,6 +14,7 @@ Concepts covered:
 - Database loading with psycopg2
 """
 
+import argparse
 import csv
 import os
 import random
@@ -200,7 +201,7 @@ def generate_clickstream(customers: list) -> list[dict]:
         event = {
             "event_id": str(uuid.uuid4()),
             "session_id": str(uuid.uuid4())[:8],
-            "customer_id": random.choice(customer_ids) if random.random() > 0.3 else "",
+            "customer_id": random.choice(customer_ids) if random.random() > 0.3 else None,
             "event_type": random.choice(EVENT_TYPES),
             "page_url": random.choice(pages),
             "referrer": random.choice(["google", "direct", "facebook", "email", "twitter", ""]),
@@ -345,4 +346,15 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="DataForge Data Generator")
+    parser.add_argument("--output-dir", default=os.getenv("OUTPUT_PATH", "./data/landing"))
+    parser.add_argument("--rows", type=int, default=int(os.getenv("NUM_ORDERS", "10000")))
+    parser.add_argument("--customers", type=int, default=int(os.getenv("NUM_CUSTOMERS", "1000")))
+    parser.add_argument("--products", type=int, default=int(os.getenv("NUM_PRODUCTS", "500")))
+    args = parser.parse_args()
+
+    OUTPUT_PATH = args.output_dir
+    NUM_CUSTOMERS = args.customers
+    NUM_PRODUCTS = args.products
+    NUM_ORDERS = args.rows
     main()

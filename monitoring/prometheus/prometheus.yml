@@ -35,9 +35,9 @@ scrape_configs:
           service: 'dataforge-api'
           environment: 'local'
 
-  # Spark Master
+  # Spark Master (REST API — not a native Prometheus exporter)
   - job_name: 'spark-master'
-    metrics_path: '/metrics/json'
+    metrics_path: '/metrics/prometheus'
     scrape_interval: 30s
     static_configs:
       - targets: ['spark-master:8080']

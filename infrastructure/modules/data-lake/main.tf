@@ -7,7 +7,7 @@ resource "azurerm_storage_account" "data_lake" {
   resource_group_name      = var.resource_group_name
   location                 = var.location
   account_tier             = "Standard"
-  account_replication_type = "LRS"
+  account_replication_type = "ZRS"
   account_kind             = "StorageV2"
   is_hns_enabled           = true  # Enable hierarchical namespace for ADLS Gen2
   min_tls_version          = "TLS1_2"

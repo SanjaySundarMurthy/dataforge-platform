@@ -1,0 +1,30 @@
+
+  ╔══════════════════════════════════════════════════╗
+  ║       DataForge Platform — Deployed!             ║
+  ╚══════════════════════════════════════════════════╝
+
+  Release: {{ .Release.Name }}
+  Namespace: {{ .Values.global.namespace }}
+
+  Access the services:
+{{- if .Values.api.enabled }}
+
+  API Service:
+    kubectl port-forward svc/{{ include "dataforge.fullname" . }}-api {{ .Values.api.service.targetPort }}:{{ .Values.api.service.port }} -n {{ .Values.global.namespace }}
+    Then open: http://localhost:{{ .Values.api.service.targetPort }}/docs
+{{- end }}
+{{- if .Values.spark.enabled }}
+
+  Spark Master UI:
+    kubectl port-forward svc/{{ include "dataforge.fullname" . }}-spark-master 8080:8080 -n {{ .Values.global.namespace }}
+    Then open: http://localhost:8080
+{{- end }}
+{{- if .Values.monitoring.grafana.enabled }}
+
+  Grafana:
+    kubectl port-forward svc/{{ include "dataforge.fullname" . }}-grafana 3000:3000 -n {{ .Values.global.namespace }}
+    Then open: http://localhost:3000
+{{- end }}
+
+  Get the full status:
+    helm status {{ .Release.Name }} -n {{ .Values.global.namespace }}

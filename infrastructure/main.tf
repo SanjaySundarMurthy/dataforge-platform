@@ -37,7 +37,7 @@ provider "azurerm" {
       purge_soft_delete_on_destroy = false
     }
     resource_group {
-      prevent_deletion_if_contains_resources = false
+      prevent_deletion_if_contains_resources = true
     }
   }
 }
@@ -125,14 +125,15 @@ module "data_lake" {
 module "data_factory" {
   source = "./modules/data-factory"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  subnet_id           = module.networking.data_subnet_id
-  key_vault_id        = module.key_vault.key_vault_id
-  data_lake_id        = module.data_lake.storage_account_id
-  tags                = local.common_tags
+  project_name               = var.project_name
+  environment                = var.environment
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
+  key_vault_id               = module.key_vault.key_vault_id
+  data_lake_id               = module.data_lake.storage_account_id
+  data_lake_dfs_endpoint     = module.data_lake.primary_dfs_endpoint
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  tags                       = local.common_tags
 }
 
 # ════════════════════════════════════════════════════════════
@@ -141,15 +142,17 @@ module "data_factory" {
 module "databricks" {
   source = "./modules/databricks"
 
-  project_name         = var.project_name
-  environment          = var.environment
-  location             = azurerm_resource_group.main.location
-  resource_group_name  = azurerm_resource_group.main.name
-  vnet_id              = module.networking.vnet_id
-  private_subnet_name  = module.networking.databricks_private_subnet_name
-  public_subnet_name   = module.networking.databricks_public_subnet_name
-  nsg_id               = module.networking.databricks_nsg_id
-  tags                 = local.common_tags
+  project_name               = var.project_name
+  environment                = var.environment
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
+  vnet_id                    = module.networking.vnet_id
+  private_subnet_name        = module.networking.databricks_private_subnet_name
+  public_subnet_name         = module.networking.databricks_public_subnet_name
+  private_nsg_association_id = module.networking.databricks_private_nsg_association_id
+  public_nsg_association_id  = module.networking.databricks_public_nsg_association_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  tags                       = local.common_tags
 }
 
 # ════════════════════════════════════════════════════════════

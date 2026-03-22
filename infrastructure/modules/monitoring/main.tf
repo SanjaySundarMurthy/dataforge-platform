@@ -7,7 +7,7 @@ resource "azurerm_log_analytics_workspace" "main" {
   location            = var.location
   resource_group_name = var.resource_group_name
   sku                 = "PerGB2018"
-  retention_in_days   = 30
+  retention_in_days   = var.retention_in_days
 
   tags = var.tags
 }
@@ -28,9 +28,12 @@ resource "azurerm_monitor_action_group" "critical" {
   resource_group_name = var.resource_group_name
   short_name          = "dfcritical"
 
-  email_receiver {
-    name          = "admin"
-    email_address = "admin@example.com"
+  dynamic "email_receiver" {
+    for_each = var.alert_email != "" ? [1] : []
+    content {
+      name          = "admin"
+      email_address = var.alert_email
+    }
   }
 
   tags = var.tags

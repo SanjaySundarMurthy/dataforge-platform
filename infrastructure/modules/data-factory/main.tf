@@ -49,7 +49,7 @@ resource "azurerm_data_factory_linked_service_data_lake_storage_gen2" "data_lake
   name                 = "ls_adls_datalake"
   data_factory_id      = azurerm_data_factory.main.id
   use_managed_identity = true
-  url                  = "https://${var.project_name}datalake.dfs.core.windows.net"
+  url                  = var.data_lake_dfs_endpoint
 }
 
 # ── Linked Service: Key Vault ────────────────────────────────

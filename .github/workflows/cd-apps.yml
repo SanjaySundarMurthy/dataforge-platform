@@ -34,9 +34,9 @@ jobs:
     strategy:
       matrix:
         image:
-          - { context: "docker/spark", name: "dataforge-spark" }
-          - { context: "api", name: "dataforge-api" }
-          - { context: "data-generator", name: "dataforge-generator" }
+          - { context: ".", dockerfile: "docker/spark/Dockerfile", name: "dataforge-spark" }
+          - { context: ".", dockerfile: "api/Dockerfile", name: "dataforge-api" }
+          - { context: ".", dockerfile: "data-generator/Dockerfile", name: "dataforge-generator" }
     steps:
       - uses: actions/checkout@v4
 
@@ -55,6 +55,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
           push: true
           tags: |
             ${{ env.ACR_NAME }}.azurecr.io/${{ matrix.image.name }}:${{ github.sha }}
@@ -96,7 +97,9 @@ jobs:
             helm-charts/dataforge-platform \
             --namespace dataforge \
             --create-namespace \
-            --set image.tag=${{ github.sha }} \
-            --set image.registry=${{ env.ACR_NAME }}.azurecr.io \
+            --set api.image.tag=${{ github.sha }} \
+            --set spark.master.image.tag=${{ github.sha }} \
+            --set spark.worker.image.tag=${{ github.sha }} \
+            --set global.imageRegistry=${{ env.ACR_NAME }}.azurecr.io \
             --wait \
             --timeout 10m
