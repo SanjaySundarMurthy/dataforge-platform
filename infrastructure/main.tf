@@ -158,16 +158,16 @@ module "databricks" {
 module "synapse" {
   source = "./modules/synapse"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  suffix              = local.suffix
-  data_lake_id        = module.data_lake.storage_account_id
-  data_lake_url       = module.data_lake.primary_dfs_endpoint
-  subnet_id           = module.networking.data_subnet_id
-  sql_admin_password  = var.synapse_sql_admin_password
-  tags                = local.common_tags
+  project_name               = var.project_name
+  environment                = var.environment
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
+  suffix                     = local.suffix
+  data_lake_id               = module.data_lake.storage_account_id
+  gold_filesystem_id         = module.data_lake.gold_filesystem_id
+  sql_admin_password         = var.synapse_sql_admin_password
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  tags                       = local.common_tags
 }
 
 # ════════════════════════════════════════════════════════════
@@ -176,14 +176,15 @@ module "synapse" {
 module "aks" {
   source = "./modules/aks"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  subnet_id           = module.networking.aks_subnet_id
-  node_count          = var.aks_node_count
-  node_vm_size        = var.aks_node_vm_size
-  tags                = local.common_tags
+  project_name               = var.project_name
+  environment                = var.environment
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
+  subnet_id                  = module.networking.aks_subnet_id
+  node_count                 = var.aks_node_count
+  node_vm_size               = var.aks_node_vm_size
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+  tags                       = local.common_tags
 }
 
 # ════════════════════════════════════════════════════════════

@@ -9,6 +9,13 @@ resource "azurerm_kubernetes_cluster" "main" {
   dns_prefix          = "${var.project_name}-${var.environment}"
   kubernetes_version  = "1.29"
 
+  # ── Workload identity & OIDC ────────────────────────────────
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
+
+  # ── Auto-upgrade to latest stable patches ───────────────────
+  automatic_channel_upgrade = "patch"
+
   default_node_pool {
     name                = "system"
     node_count          = var.node_count
@@ -19,6 +26,7 @@ resource "azurerm_kubernetes_cluster" "main" {
     enable_auto_scaling = true
     min_count           = 1
     max_count           = 5
+    zones               = ["1", "2", "3"]
 
     upgrade_settings {
       max_surge = "33%"
@@ -37,8 +45,18 @@ resource "azurerm_kubernetes_cluster" "main" {
     dns_service_ip    = "10.1.0.10"
   }
 
-  oms_agent {
-    log_analytics_workspace_id = var.log_analytics_workspace_id
+  # ── OMS Agent (only when Log Analytics ID is provided) ──────
+  dynamic "oms_agent" {
+    for_each = var.log_analytics_workspace_id != null ? [1] : []
+    content {
+      log_analytics_workspace_id = var.log_analytics_workspace_id
+    }
+  }
+
+  # ── Key Vault Secrets Provider ──────────────────────────────
+  key_vault_secrets_provider {
+    secret_rotation_enabled  = true
+    secret_rotation_interval = "2m"
   }
 
   azure_active_directory_role_based_access_control {
@@ -49,6 +67,18 @@ resource "azurerm_kubernetes_cluster" "main" {
   auto_scaler_profile {
     balance_similar_node_groups = true
     scale_down_delay_after_add  = "10m"
+  }
+
+  # ── Maintenance Window (Tue/Wed nights) ─────────────────────
+  maintenance_window {
+    allowed {
+      day   = "Tuesday"
+      hours = [21, 22, 23]
+    }
+    allowed {
+      day   = "Wednesday"
+      hours = [0, 1, 2, 3]
+    }
   }
 
   tags = var.tags
@@ -81,6 +111,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "worker" {
   node_taints = [
     "workload=spark:NoSchedule"
   ]
+
+  lifecycle {
+    ignore_changes = [node_count]
+  }
 
   tags = var.tags
 }
